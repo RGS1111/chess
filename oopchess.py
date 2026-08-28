@@ -328,4 +328,4 @@ Game.play()
 
 
 # - to handle king in check, players move validation checked 1st and then function determining if any 
-#   pieces can capture king and if move made can expose king 
+#   pieces can capture king and if move made can expose king
