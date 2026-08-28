@@ -1,0 +1,331 @@
+import numpy as np
+
+class board:
+    def __init__(self):
+        self.board_array = np.zeros((8,8), dtype=int)
+        #flipped_array = np.flip(board_array) (not needed since i have the negative number logic
+        #for opposing player)
+        count_p1 = 0
+        for row in range(0,2):
+            for column in range (0,8):
+                count_p1 = count_p1 + 1
+                self.board_array[row, column] = count_p1
+        count_p2 = 0
+        for row in range(6,8):
+            for column in range (0,8):
+                count_p2 = count_p2 - 1
+                self.board_array[row, column] = count_p2
+    def game_view(self):
+        print(self.board_array)
+
+    def sign_check(self, piece_id):
+            # sign of piece_id compared to biggefr or smaller than 0 returning true or false aka 1 or 0 
+            # and then if bigger than 0, then the same piece_id is NOT smaller than 0, so 0 
+            # therefore 1 - 0 = +1 or if opposite example 0 - 1 = -1, thus determining sign
+            print(int(piece_id > 0), int(piece_id < 0))
+            return (int(piece_id > 0) - int(piece_id < 0))
+    
+    # returns the piece id, for checking of piece
+    def get_piece_id(self, start):
+        return self.board_array[start]
+
+    def can_capture(self, start, end):
+        start_id = self.board_array[start]
+        end_id = self.board_array[end]
+
+        if end_id == 0:
+            return True
+        # returns true if the start piece is a different sign to the end piece 
+        # aka + and - means black and white 
+        return (self.sign_check(start_id) != self.sign_check(end_id))
+
+    def path_clear(self, start, end):
+        # NOT TO BE USED FOR KNIGHT AS IT JUMPS OVER PIECES, so no path to check clearing for
+
+        ########## flipped x and y in start and end, so that coordinates dispalyed are normal, 
+        # NOT INDICATIVE of how the system views x and y internally
+        (x1, y1) = start
+        (x2, y2) = end
+        dx = x2 - x1
+        dy = y2 - y1
+        # Allows us to trace the direction of the move 
+        stepx = 1 if dx > 0 else -1 if dx < 0 else 0 
+        stepy = 1 if dy > 0 else -1 if dy < 0 else 0
+        
+        # current starts 1 off forward as we know there is nothing blocking us in 
+        # the initial standing position
+        current = (x1, y1)
+        print(current)
+        print("Previous Position:",start[::-1], self.board_array[current])
+        print("New Position:",end[::-1], self.board_array[current])
+        ################################# x and y in visual is flipped
+        while current != end:
+            current = (
+                current[0] + stepx,
+                current[1] + stepy
+            )
+            # makes sure that the end coordinate is never decided, 
+            # so that can_capture decides the capture logic
+            if current == end:
+                break
+            if self.board_array[current] != 0:
+                return False
+        return True
+    # checks if king is in check or not
+    def king_in_check():
+        pass
+
+    def move_piece(self, start, end):
+        self.board_array[end] = self.board_array[start]
+        self.board_array[start] = 0
+        self.game_view()
+    # # to decide 1 or 2 step move for 1st move on pawn
+    # def increment_pawn(self, start):
+    #     pawn_id = self.board_array[start]
+
+
+class pieces:
+    def __init__(self):
+        # contains all the pieces metadata for all 32 significant pieces
+        self.piece = {
+        1 : rook(),
+        2 : knight(),
+        3 : bishop(),
+        4 : queen(),
+        5 : king(),
+        6 : bishop(),
+        7 : knight(),
+        8 : rook(),
+        9 : pawn(),
+        10 : pawn(),
+        11 : pawn(),
+        12 : pawn(),
+        13 : pawn(),
+        14 : pawn(),
+        15 : pawn(),
+        16 : pawn(),
+        -1 : pawn(),
+        -2 : pawn(),
+        -3 : pawn(),
+        -4 : pawn(),
+        -5 : pawn(),
+        -6 : pawn(),
+        -7 : pawn(),
+        -8 : pawn(),
+        -9 : rook(),
+        -10 : knight(),
+        -11 : bishop(),
+        -12 : king(),
+        -13 : queen(),
+        -14 : bishop(),
+        -15 : knight(),
+        -16 : rook()
+        }
+##############################################################################################################
+# for all chess peices the move made by the player can be determined by subtracting 
+# the end position and start position giving a constant change/pattern for each piece
+class pawn:
+    # hardest and most feature rich func, with all the things a pawn can do
+    # - pawn can either move 1 step forward at start or 2 squares forward 
+    # - en passant - pawn that has moved forward 2 squares can be 
+    #   captured by opposing pawn (by moving straight 1 square next to pawn 
+    #   which has moved 2 squares) 
+    # - pawn promotion when pawn reaches end of oppsite side board
+    def is_valid_move(self, start, end, board, board_start, board_end):
+        #self.board = board()
+        # user presentable x,y start and end 
+        (x1, y1) = start 
+        (x2, y2) = end 
+        print("start and end: ", start, end)
+        dx = x2 - x1
+        dy = y2 - y1
+        piece_id = board.get_piece_id(board_start)
+        target_id = board.get_piece_id(board_end)
+        # pawns initially located at y = 1 and y = 6
+        if piece_id > 0:
+            board_end = 6 # for pawn promotion 
+            # for positive id pieces (BLACK)
+            # CONTINUE LOGIC FOR PAWN ##############################################################################
+            print(piece_id)
+            print(f"{dy}, {y2}, {y1}")
+            # normal move
+            if dx == 0 and dy == 1 and target_id == 0:
+                return True
+            # capture logic
+            if abs(dx) == 1 and dy == 0 and target_id < 0:
+                return True 
+        else:
+            board_end = 0 # for pawn promotion
+            # for negative id pieces (WHITE)
+            print(board.get_piece_id(board_start))
+            print(f"data: {dy}, {y2}, {y1}", y2-y1)
+            return (y2-y1 == -1)
+            
+class bishop:
+    def is_valid_move(self, start, end, board = None, board_start = None, board_end = None):
+        (x1, y1) = start
+        (x2, y2) = end 
+        return(abs((x2-x1)) == abs((y2-y1)))
+    #2 pieces per side/manipulate both with one class
+    pass
+class knight:
+    #2 pieces per side/manipulate both with one class
+    ####### this piece doesn't need to have 'check_path', as knight JUMPS in L shape, 
+    # skipping the pieces in between
+    def is_valid_move(self, start, end, board = None, board_start = None, board_end = None):
+        (x1, y1) = start
+        (x2, y2) = end 
+        print("start and end: ", start, end)
+        dx = x2 - x1
+        dy = y2 - y1
+        # the general direction that the piece moves in 
+        return((abs(dx) == 2) and (abs(dy) == 1)
+               or ((abs(dy) == 2) and (abs(dx) == 1)))
+
+class rook:
+    def is_valid_move(self, start, end, board = None, board_start = None, board_end = None):
+        (x1, y1) = start
+        (x2, y2) = end
+        dx = x2 - x1
+        dy = y2 - y1
+        # Allows us to trace the direction of the move 
+        stepx = 1 if dx > 0 else -1 if dx < 0 else 0 
+        stepy = 1 if dy > 0 else -1 if dy < 0 else 0
+        return((abs(stepx) == 1 and stepy == 0) or (stepx == 0 and abs(stepy == 1)))
+
+    
+    #2 
+    # previous_position and new_position are tuples of x and y coorinates
+    # def __init__(self, previous_position, new_position):
+    #     self.previous_position = previous_position
+    #     self.new_position = new_position
+        
+    #     (self.x1,self.y1) = self.previous_position
+    #     (self.x2, self.y2) = self.new_position
+    #     # Assuming that (1,1) is the top-left corner off board
+    #     print("Previous Position:",self.previous_position)
+    #     print("New Position:",self.new_position)
+    # class moves:
+    #     print("\nWithin subclass 'moves', where superclass is 'rook', \nthe " \
+    #     "logic conducted decides which move the rook can take, or if the move is illegalee. ")
+    #     def straight_vertical(self):
+    #         move = "self.straight_vertical"
+    #         print(f"\nHere the move is actually made and updated onto graph: {move}")
+    #     def straight_horizontal(self):
+    #         move = "self.straight_horizontal"
+    #         print(f"\nHere the move is actually made and updated onto graph: {move}")
+class king:
+    #1 piece per side/manipulate both with one class
+    def is_valid_move(self, start, end, board = None, board_start = None, board_end = None):
+        (x1, y1) = start
+        (x2, y2) = end 
+        dx = x2 - x1
+        dy = y2 - y1
+        return((abs(dx) == 1 and dy == 0) 
+               or (dx == 0 and abs(dy) == 1) 
+               or abs(dx) == abs(dy))
+class queen:
+    #1 piece per side/manipulate both with one class
+    # queen can make moves from both the bishop and the rook, 
+    # aka (linear and diagonal)
+    def is_valid_move(self, start, end, board = None, board_start = None, board_end = None):
+            (x1, y1) = start
+            (x2, y2) = end
+            dx = x2 - x1
+            dy = y2 - y1
+            # Allows us to trace the direction of the move 
+            stepx = 1 if dx > 0 else -1 if dx < 0 else 0 
+            stepy = 1 if dy > 0 else -1 if dy < 0 else 0
+            # rook and bishop conditions combined 
+            return((abs((x2-x1)) == abs((y2-y1))) 
+                   or (abs(stepx) == 1 and stepy == 0) 
+                   or (stepx == 0 and abs(stepy == 1))) 
+
+class game:
+    # logic to control and manage all classses here, below all other classes and things needed \
+    # dictionary to have letter/number position identity instead of coordinates
+    # dictionary or such to identify what piece each number is, from 1-16 (same for -1 to -16)
+    def __init__(self):
+        self.board = board()
+        self.pieces = pieces()
+        #######################################################################
+        # NEED LOGIC FOR WHITE AND BLACK
+    def sign_check(self, piece_id):
+        # sign of piece_id compared to biggefr or smaller than 0 returning true or false aka 1 or 0 
+        # and then if bigger than 0, then the same piece_id is NOT smaller than 0, so 0 
+        # therefore 1 - 0 = +1 or if opposite example 0 - 1 = -1, thus determining sign
+        print(int(piece_id > 0), int(piece_id < 0))
+        return (int(piece_id > 0) - int(piece_id < 0))
+    
+    def play(self):
+        playing = True
+        # set playing to false when game lost
+        while playing:
+            print("\n\n")
+            self.board.game_view()
+            # below the tuple stores everything as string
+            start = tuple(map(int, input("Enter start coordinates in form (x,y): ")))
+            x1, y1 = start
+            end = tuple(map(int, input("Enter end coordinates in form (x,y): ")))
+            x2, y2 = end 
+
+            # on board row and column as x and y is flipped, so y in x and x in y position 
+            board_start = (y1, x1)
+            board_end = (y2, x2)
+            board_piece_start = self.board.get_piece_id(board_start)
+            board_piece_end = self.board.get_piece_id(board_end)
+
+            if self.board.get_piece_id(board_start) == 0: # fixes the 0 id bug, as not in 
+                print("There is no piece at this position id: {0}")
+                continue # restarts the loop cleanly 
+            # retrives the id for the starting/playing piece
+            piece_id = self.board.get_piece_id(board_start)
+            # chess_piece holds the class for the id's piece type (eg. rook, queen ect...)
+            chess_piece = self.pieces.piece[piece_id]
+            # is_valid_move function used to check the move conforms to its piece id 
+            print("start:", start)
+            print("end:", end)
+            print("piece:", type(chess_piece).__name__)
+            print("valid:", chess_piece.is_valid_move(start, end, self.board, board_start))
+            # - 'start' and 'end' given to chess piece class as its the correct x,y format for user 
+            #   and 'boardstart' and 'boardend' given to the internal board mechanics
+            if chess_piece.is_valid_move(start, end, self.board, board_start, board_end): 
+                # - self.board instead of self.board(), as the '()' represents calling 
+                #   a function, in which the piece that recieves the board function 
+                #   will not be able to access the function, due to it being in the 
+                #   game() class, so just pass a REFRENCE instead, aka 'self.board' 
+                #   which points to the board in memory stored in game class.
+                # continue logic to make the move by capture logic by using negative and positive
+
+                if isinstance(chess_piece, knight): # knight != path check as it jumps over 
+                    path_is_clear = True
+                else:
+                    path_is_clear = self.board.path_clear(board_start, board_end)
+        
+                if path_is_clear and self.board.can_capture(board_start, board_end):
+                    self.board.move_piece(board_start, board_end)
+                else:
+                    print("\nInvalid Move\n")
+            else:
+                print("\nInvalid Move\n")
+            # logic for black and white player needed, aswell as capture logic 
+            # logic for king in check
+
+Game = game()
+Game.play()
+# code to determine if a piece is caught or not by adding the values of 
+# the 2 peices at the position, awarding capture to the current player.
+
+#move1 = game.rook((1,6), (1,1))
+# move1 has the rook class alrdy, where the coordinates are instantiated
+# moves(), is the subclass of the superclass rook
+# straight_vertical(), is a function/method of the subclass moves()
+#move1.moves().straight_vertical()
+#move1.moves().straight_horizontal()
+
+#board1 = game.board((1,8))
+#board1.game_view()
+
+
+# - to handle king in check, players move validation checked 1st and then function determining if any 
+#   pieces can capture king and if move made can expose king 
