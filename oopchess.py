@@ -256,6 +256,12 @@ class game:
         # therefore 1 - 0 = +1 or if opposite example 0 - 1 = -1, thus determining sign
         print(int(piece_id > 0), int(piece_id < 0))
         return (int(piece_id > 0) - int(piece_id < 0))
+
+    def king_in_check(self, king_position):
+        # logic for king in check 
+        # check diagonal(4) and orthogonal(4) + knight jump (8)
+        # knight jump check can be calculated using a dictionary of 8 positions displaced from king  
+        pass
     
     def play(self):
         playing = True
@@ -327,5 +333,9 @@ Game.play()
 #board1.game_view()
 
 
-# - to handle king in check, players move validation checked 1st and then function determining if any 
-#   pieces can capture king and if move made can expose king
+## TODO
+# - King in check logic - mid
+# - Black vs White logic - mid
+# - Pawn en-passant - mid 
+# - Pawn promotion at board end - mid 
+# - King castling with rook - easy 
