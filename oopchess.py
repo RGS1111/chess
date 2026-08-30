@@ -170,21 +170,15 @@ class pawn:
             # CONTINUE LOGIC FOR PAWN ##############################################################################
             print(piece_id)
             print(f"{dy}, {y2}, {y1}")
-            # normal move
-            if dx == 0 and dy == 1 and target_id == 0:
+            if self.move_check_black(dx, x1, x2, dy, y1, y2, piece_id, target_id):
                 return True
-            # capture logic
-            if abs(dx) == 1 and dy == 0 and target_id < 0:
-                return True 
-            # logic for pawn double step
-            if y1 == 1 and dy == 2:
-                return True 
         else:
             board_end = 0 # for pawn promotion
             # for negative id pieces (WHITE)
             print(board.get_piece_id(board_start))
             print(f"data: {dy}, {y2}, {y1}", y2-y1)
-            return (y2-y1 == -1)
+            if self.move_check_white(dx, x1, x2, dy, y1, y2, piece_id, target_id):
+                return True 
             
 class bishop:
     def is_valid_move(self, start, end, board = None, board_start = None, board_end = None):
