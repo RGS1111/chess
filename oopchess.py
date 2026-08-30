@@ -131,6 +131,28 @@ class pawn:
     #   captured by opposing pawn (by moving straight 1 square next to pawn 
     #   which has moved 2 squares) 
     # - pawn promotion when pawn reaches end of oppsite side board
+    def move_check_black(self, dx, x1, x2, dy, y1, y2, piece_id, target_id):
+        # for positive id pieces (BLACK)
+        # normal move
+        if dx == 0 and dy == 1 and target_id == 0:
+            return True
+        # capture logic (diagonal forward for pawn)
+        if abs(dx) == 1 and dy == 1 and target_id < 0:
+            return True 
+        # logic for pawn double step
+        if y1 == 1 and dy == 2:
+            return True 
+    def move_check_white(self, dx, x1, x2, dy, y1, y2, piece_id, target_id):
+        # normal move
+        if dx == 0 and dy == -1 and target_id == 0:
+            return True
+        # capture logic (diagonal forward for pawn)
+        if abs(dx) == 1 and dy == 1 and target_id > 0:
+            return True 
+        # logic for pawn double step
+        if y1 == 6 and dy == -2:
+            return True 
+        
     def is_valid_move(self, start, end, board, board_start, board_end):
         #self.board = board()
         # user presentable x,y start and end 
@@ -153,6 +175,9 @@ class pawn:
                 return True
             # capture logic
             if abs(dx) == 1 and dy == 0 and target_id < 0:
+                return True 
+            # logic for pawn double step
+            if y1 == 1 and dy == 2:
                 return True 
         else:
             board_end = 0 # for pawn promotion
@@ -262,7 +287,7 @@ class game:
         # check diagonal(4) and orthogonal(4) + knight jump (8)
         # knight jump check can be calculated using a dictionary of 8 positions displaced from king  
         pass
-    
+
     def play(self):
         playing = True
         # set playing to false when game lost
@@ -292,7 +317,7 @@ class game:
             print("start:", start)
             print("end:", end)
             print("piece:", type(chess_piece).__name__)
-            print("valid:", chess_piece.is_valid_move(start, end, self.board, board_start))
+            print("valid:", chess_piece.is_valid_move(start, end, self.board, board_start, board_end))
             # - 'start' and 'end' given to chess piece class as its the correct x,y format for user 
             #   and 'boardstart' and 'boardend' given to the internal board mechanics
             if chess_piece.is_valid_move(start, end, self.board, board_start, board_end): 
