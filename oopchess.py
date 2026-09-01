@@ -75,6 +75,19 @@ class board:
     def king_in_check():
         pass
 
+    def is_empty(self, end):
+        return self.board_array[end] == 0
+    
+    def is_enemy(self, current_piece_id, end):
+        target_id = self.board_array[end]
+        if target_id == 0:
+            return False
+        return (current_piece_id > 0) != (target_id > 0)
+
+    def is_pawn(self, end):
+        piece_id = self.board_array[end]
+        return (piece_id >= -8 and piece_id <= 9)
+
     def move_piece(self, start, end):
         self.board_array[end] = self.board_array[start]
         self.board_array[start] = 0
@@ -130,30 +143,9 @@ class pawn:
     # - en passant - pawn that has moved forward 2 squares can be 
     #   captured by opposing pawn (by moving straight 1 square next to pawn 
     #   which has moved 2 squares) 
-    # - pawn promotion when pawn reaches end of oppsite side board
-    def move_check_black(self, dx, x1, x2, dy, y1, y2, piece_id, target_id):
-        # for positive id pieces (BLACK)
-        # normal move
-        if dx == 0 and dy == 1 and target_id == 0:
-            return True
-        # capture logic (diagonal forward for pawn)
-        if abs(dx) == 1 and dy == 1 and target_id < 0:
-            return True 
-        # logic for pawn double step
-        if y1 == 1 and dy == 2:
-            return True 
-    def move_check_white(self, dx, x1, x2, dy, y1, y2, piece_id, target_id):
-        # normal move
-        if dx == 0 and dy == -1 and target_id == 0:
-            return True
-        # capture logic (diagonal forward for pawn)
-        if abs(dx) == 1 and dy == 1 and target_id > 0:
-            return True 
-        # logic for pawn double step
-        if y1 == 6 and dy == -2:
-            return True 
+    # - pawn promotion when pawn reaches end of oppsite side board - TODO
         
-    def is_valid_move(self, start, end, board, board_start, board_end):
+    def is_valid_move(self, start, end, board, board_start, board_end, en_passant_target):
         #self.board = board()
         # user presentable x,y start and end 
         (x1, y1) = start 
@@ -164,21 +156,21 @@ class pawn:
         piece_id = board.get_piece_id(board_start)
         target_id = board.get_piece_id(board_end)
         # pawns initially located at y = 1 and y = 6
-        if piece_id > 0:
-            board_end = 6 # for pawn promotion 
-            # for positive id pieces (BLACK)
-            # CONTINUE LOGIC FOR PAWN ##############################################################################
-            print(piece_id)
-            print(f"{dy}, {y2}, {y1}")
-            if self.move_check_black(dx, x1, x2, dy, y1, y2, piece_id, target_id):
-                return True
-        else:
-            board_end = 0 # for pawn promotion
-            # for negative id pieces (WHITE)
-            print(board.get_piece_id(board_start))
-            print(f"data: {dy}, {y2}, {y1}", y2-y1)
-            if self.move_check_white(dx, x1, x2, dy, y1, y2, piece_id, target_id):
-                return True 
+        direction = 1 if piece_id > 0 else -1
+        pawn_start_row = 1 if piece_id > 0 else 6
+
+        # normal forward 
+        if dx == 0 and dy == direction and board.is_empty(board_end):
+            return True
+        # double step 
+        if dx == 0 and dy == 2 * direction and y1 == pawn_start_row and board.is_empty(board_end):
+            return True 
+        # diagonal capture only 
+        if (abs(dx) == 1 and dy == direction and board.is_enemy(piece_id, board_end)):
+            return True
+        # en-passant capture 
+        if abs(dx) == 1 and dy == direction and end == en_passant_target:
+            return True 
             
 class bishop:
     def is_valid_move(self, start, end, board = None, board_start = None, board_end = None):
@@ -212,27 +204,6 @@ class rook:
         stepy = 1 if dy > 0 else -1 if dy < 0 else 0
         return((abs(stepx) == 1 and stepy == 0) or (stepx == 0 and abs(stepy == 1)))
 
-    
-    #2 
-    # previous_position and new_position are tuples of x and y coorinates
-    # def __init__(self, previous_position, new_position):
-    #     self.previous_position = previous_position
-    #     self.new_position = new_position
-        
-    #     (self.x1,self.y1) = self.previous_position
-    #     (self.x2, self.y2) = self.new_position
-    #     # Assuming that (1,1) is the top-left corner off board
-    #     print("Previous Position:",self.previous_position)
-    #     print("New Position:",self.new_position)
-    # class moves:
-    #     print("\nWithin subclass 'moves', where superclass is 'rook', \nthe " \
-    #     "logic conducted decides which move the rook can take, or if the move is illegalee. ")
-    #     def straight_vertical(self):
-    #         move = "self.straight_vertical"
-    #         print(f"\nHere the move is actually made and updated onto graph: {move}")
-    #     def straight_horizontal(self):
-    #         move = "self.straight_horizontal"
-    #         print(f"\nHere the move is actually made and updated onto graph: {move}")
 class king:
     #1 piece per side/manipulate both with one class
     def is_valid_move(self, start, end, board = None, board_start = None, board_end = None):
@@ -267,6 +238,7 @@ class game:
     def __init__(self):
         self.board = board()
         self.pieces = pieces()
+        self.en_passant_target = (None) # store target tuple or none
         #######################################################################
         # NEED LOGIC FOR WHITE AND BLACK
     def sign_check(self, piece_id):
@@ -299,6 +271,9 @@ class game:
             board_end = (y2, x2)
             board_piece_start = self.board.get_piece_id(board_start)
             board_piece_end = self.board.get_piece_id(board_end)
+            # for en-passant logic dy
+            dx = x2 - x1
+            dy = y2 - y1
 
             if self.board.get_piece_id(board_start) == 0: # fixes the 0 id bug, as not in 
                 print("There is no piece at this position id: {0}")
@@ -311,16 +286,25 @@ class game:
             print("start:", start)
             print("end:", end)
             print("piece:", type(chess_piece).__name__)
-            print("valid:", chess_piece.is_valid_move(start, end, self.board, board_start, board_end))
+            print("valid:", chess_piece.is_valid_move(start, end, self.board, board_start, board_end, self.en_passant_target))
             # - 'start' and 'end' given to chess piece class as its the correct x,y format for user 
             #   and 'boardstart' and 'boardend' given to the internal board mechanics
-            if chess_piece.is_valid_move(start, end, self.board, board_start, board_end): 
+            if chess_piece.is_valid_move(start, end, self.board, board_start, board_end, self.en_passant_target): 
                 # - self.board instead of self.board(), as the '()' represents calling 
                 #   a function, in which the piece that recieves the board function 
                 #   will not be able to access the function, due to it being in the 
                 #   game() class, so just pass a REFRENCE instead, aka 'self.board' 
                 #   which points to the board in memory stored in game class.
-                # continue logic to make the move by capture logic by using negative and positive
+
+                # - Check if the moved piece was a double step pawn for en-passant count 
+                #   as en-passant only occurs on the turn after the double pawn moves forward
+                if isinstance(chess_piece, pawn) and abs(dy) == 2:
+                    # Target square is the skipped square in user coordinates (x, y)
+                    skipped_y = (y1 + y2) // 2
+                    self.en_passant_target = (x1, skipped_y)
+                else:
+                    # Clear en passant if any other move is made
+                    self.en_passant_target = None
 
                 if isinstance(chess_piece, knight): # knight != path check as it jumps over 
                     path_is_clear = True
