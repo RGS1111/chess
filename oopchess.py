@@ -134,6 +134,11 @@ class pieces:
         -15 : knight(),
         -16 : rook()
         }
+
+    def pawn_promotion(self, id, promotion):
+        self.piece[id] = promotion
+        print(f"promoted to {promotion}")
+
 ##############################################################################################################
 # for all chess peices the move made by the player can be determined by subtracting 
 # the end position and start position giving a constant change/pattern for each piece
@@ -173,7 +178,7 @@ class pawn:
             return True 
             
 class bishop:
-    def is_valid_move(self, start, end, board = None, board_start = None, board_end = None):
+    def is_valid_move(self, start, end, board = None, board_start = None, board_end = None, en_passant_target = None):
         (x1, y1) = start
         (x2, y2) = end 
         return(abs((x2-x1)) == abs((y2-y1)))
@@ -183,7 +188,7 @@ class knight:
     #2 pieces per side/manipulate both with one class
     ####### this piece doesn't need to have 'check_path', as knight JUMPS in L shape, 
     # skipping the pieces in between
-    def is_valid_move(self, start, end, board = None, board_start = None, board_end = None):
+    def is_valid_move(self, start, end, board = None, board_start = None, board_end = None, en_passant_target = None):
         (x1, y1) = start
         (x2, y2) = end 
         print("start and end: ", start, end)
@@ -194,7 +199,7 @@ class knight:
                or ((abs(dy) == 2) and (abs(dx) == 1)))
 
 class rook:
-    def is_valid_move(self, start, end, board = None, board_start = None, board_end = None):
+    def is_valid_move(self, start, end, board = None, board_start = None, board_end = None, en_passant_target = None):
         (x1, y1) = start
         (x2, y2) = end
         dx = x2 - x1
@@ -206,7 +211,7 @@ class rook:
 
 class king:
     #1 piece per side/manipulate both with one class
-    def is_valid_move(self, start, end, board = None, board_start = None, board_end = None):
+    def is_valid_move(self, start, end, board = None, board_start = None, board_end = None, en_passant_target = None):
         (x1, y1) = start
         (x2, y2) = end 
         dx = x2 - x1
@@ -218,7 +223,7 @@ class queen:
     #1 piece per side/manipulate both with one class
     # queen can make moves from both the bishop and the rook, 
     # aka (linear and diagonal)
-    def is_valid_move(self, start, end, board = None, board_start = None, board_end = None):
+    def is_valid_move(self, start, end, board = None, board_start = None, board_end = None, en_passant_target = None):
             (x1, y1) = start
             (x2, y2) = end
             dx = x2 - x1
@@ -229,7 +234,7 @@ class queen:
             # rook and bishop conditions combined 
             return((abs((x2-x1)) == abs((y2-y1))) 
                    or (abs(stepx) == 1 and stepy == 0) 
-                   or (stepx == 0 and abs(stepy == 1))) 
+                   or (stepx == 0 and abs(stepy) == 1)) 
 
 class game:
     # logic to control and manage all classses here, below all other classes and things needed \
@@ -295,6 +300,23 @@ class game:
                 #   will not be able to access the function, due to it being in the 
                 #   game() class, so just pass a REFRENCE instead, aka 'self.board' 
                 #   which points to the board in memory stored in game class.
+                if isinstance(chess_piece, pawn) and y2 == 0 or y2 == 7:
+                    # CODE FOR PAWN PROMOTION AT END OF BOARD #TODO
+                    # - I can use 'or' here, since a pawn cannot travel backwards, thus any pawn at 
+                    #   vertical ends y == 0 or y == 7 would be eligible for a pawn promotion
+                    promotion_choice = int(input("\nPAWN has reached the end. \n"\
+                    "Enter the number of the desired promotion piece: \n" \
+                    "1 : ROOK \n" \
+                    "2 : KNIGHT \n" \
+                    "3 : BISHOP \n" \
+                    "4 : QUEEN \n" \
+                    "Enter Int -> "))
+                    promotion = {1 : rook(),
+                                 2 : knight(),
+                                 3 : bishop(),
+                                 4 : queen()} 
+                    self.pieces.pawn_promotion(piece_id, promotion[promotion_choice])
+
 
                 # - Check if the moved piece was a double step pawn for en-passant count 
                 #   as en-passant only occurs on the turn after the double pawn moves forward
@@ -339,6 +361,5 @@ Game.play()
 ## TODO
 # - King in check logic - mid
 # - Black vs White logic - mid
-# - Pawn en-passant - mid 
-# - Pawn promotion at board end - mid 
+# - Pawn promotion at board end - mid # DONE, FULL TESTING NEEDED
 # - King castling with rook - easy 
