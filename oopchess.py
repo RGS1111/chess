@@ -128,8 +128,8 @@ class pieces:
         -9 : rook(),
         -10 : knight(),
         -11 : bishop(),
-        -12 : king(),
-        -13 : queen(),
+        -12 : queen(),
+        -13 : king(),
         -14 : bishop(),
         -15 : knight(),
         -16 : rook()
@@ -183,7 +183,7 @@ class bishop:
         (x2, y2) = end 
         return(abs((x2-x1)) == abs((y2-y1)))
     #2 pieces per side/manipulate both with one class
-    pass
+    #pass
 class knight:
     #2 pieces per side/manipulate both with one class
     ####### this piece doesn't need to have 'check_path', as knight JUMPS in L shape, 
@@ -207,7 +207,7 @@ class rook:
         # Allows us to trace the direction of the move 
         stepx = 1 if dx > 0 else -1 if dx < 0 else 0 
         stepy = 1 if dy > 0 else -1 if dy < 0 else 0
-        return((abs(stepx) == 1 and stepy == 0) or (stepx == 0 and abs(stepy == 1)))
+        return((abs(stepx) == 1 and stepy == 0) or (stepx == 0 and abs(stepy) == 1))
 
 class king:
     #1 piece per side/manipulate both with one class
@@ -216,9 +216,9 @@ class king:
         (x2, y2) = end 
         dx = x2 - x1
         dy = y2 - y1
-        return((abs(dx) == 1 and dy == 0) 
-               or (dx == 0 and abs(dy) == 1) 
-               or abs(dx) == abs(dy))
+        return(((abs(dx) == 1 and dy == 0)) 
+               or ((dx == 0 and abs(dy) == 1)) 
+               or (abs(dx) == 1 and abs(dy) == 1))
 class queen:
     #1 piece per side/manipulate both with one class
     # queen can make moves from both the bishop and the rook, 
@@ -259,9 +259,73 @@ class game:
         # knight jump check can be calculated using a dictionary of 8 positions displaced from king  
         pass
 
+    def force_castle(self, board_start, board_end, rook_board_start, rook_board_end):
+        # function to force rook to move for castling logic TODO 
+        # moves the king by 2 pieces entere by user
+        self.board.move_piece(board_start, board_end)
+        # moves the closest rook next to the king 
+        self.board.move_piece(rook_board_start, rook_board_end)
+
+
+    def castling_condition(self, start, end, board_start, board_end, kings_moved, rooks_moved, king_id):
+        # king must not have moved before
+        king_side = 1 if king_id > 0 else -1
+
+        if kings_moved[king_side] != 0:
+            print("Invalid Castling: King has already moved")
+            return
+
+        # four legal castling moves in GAME coordinates
+        # rook positions are given in BOARD coordinates
+        castling_moves = {
+            ((4, 7), (2, 7)): ((7, 0), (7, 3)),  # White queenside
+            ((4, 7), (6, 7)): ((7, 7), (7, 5)),  # White kingside
+            ((4, 0), (2, 0)): ((0, 0), (0, 3)),  # Black queenside
+            ((4, 0), (6, 0)): ((0, 7), (0, 5))   # Black kingside
+        }
+
+        move = (start, end)
+
+        if move not in castling_moves:
+            print("Invalid Castling")
+            return
+
+        rook_board_start, rook_board_end = castling_moves[move]
+
+        # Check that the correct rook exists
+        rook_id = self.board.get_piece_id(rook_board_start)
+
+        if rook_id not in rooks_moved:
+            print("Invalid Castling: No valid rook")
+            return
+
+        # Make sure the piece actually is a rook
+        if not isinstance(self.pieces.piece[rook_id], rook):
+            print("Invalid Castling: Piece is not a rook")
+            return
+
+        # Rook must not have moved before
+        if rooks_moved[rook_id] != 0:
+            print("Invalid Castling: Rook has already moved")
+            return
+
+        # Every square between king and rook must be empty
+        if not self.board.path_clear(board_start, rook_board_start):
+            print("Invalid Castling: Path is blocked")
+            return
+
+        # If all conditions above passed, perform castling
+        self.force_castle(board_start, board_end, rook_board_start, rook_board_end)
+
+
+
     def play(self):
         playing = True
         # set playing to false when game lost
+        # TODO : for castling logic using kings black or white ( 1, -1) and rooks piece_id
+        kings_moved = {1 : 0, -1 : 0}
+        rooks_moved = {1 : 0, -9 : 0,
+                       8 : 0, -16 : 0}
         while playing:
             print("\n\n")
             self.board.game_view()
@@ -300,7 +364,7 @@ class game:
                 #   will not be able to access the function, due to it being in the 
                 #   game() class, so just pass a REFRENCE instead, aka 'self.board' 
                 #   which points to the board in memory stored in game class.
-                if isinstance(chess_piece, pawn) and y2 == 0 or y2 == 7:
+                if isinstance(chess_piece, pawn) and y2 in (0 , 7):
                     # CODE FOR PAWN PROMOTION AT END OF BOARD #TODO
                     # - I can use 'or' here, since a pawn cannot travel backwards, thus any pawn at 
                     #   vertical ends y == 0 or y == 7 would be eligible for a pawn promotion
@@ -332,11 +396,24 @@ class game:
                     path_is_clear = True
                 else:
                     path_is_clear = self.board.path_clear(board_start, board_end)
+
+                if isinstance(chess_piece, king):
+                    # piece_id must be the king's id, then piece_id / abs(piece_id will give +1 or -1, as black or white)
+                    kings_moved[piece_id / abs(piece_id)] += 1
+                    print(kings_moved)
+
+                if isinstance(chess_piece, rook):
+                    rooks_moved[piece_id] += 1
+                    print(rooks_moved)
         
                 if path_is_clear and self.board.can_capture(board_start, board_end):
                     self.board.move_piece(board_start, board_end)
                 else:
                     print("\nInvalid Move\n")
+            # if king piece move is not valid, and is castling, execute castling_condition func 
+            elif isinstance(chess_piece, king) and abs(dx) == 2 and dy == 0:
+                # TODO #################### - KING CASTLING LOGIC HERE
+                self.castling_condition(start, end, board_start, board_end, kings_moved, rooks_moved, piece_id)
             else:
                 print("\nInvalid Move\n")
             # logic for black and white player needed, aswell as capture logic 
@@ -361,5 +438,5 @@ Game.play()
 ## TODO
 # - King in check logic - mid
 # - Black vs White logic - mid
-# - Pawn promotion at board end - mid # DONE, FULL TESTING NEEDED
-# - King castling with rook - easy 
+                                # - Pawn promotion at board end - mid # DONE, FULL TESTING NEEDED
+                # - King castling with rook - easy 
