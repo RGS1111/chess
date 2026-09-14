@@ -1,4 +1,5 @@
 import numpy as np
+import itertools
 
 class board:
     def __init__(self):
@@ -256,8 +257,34 @@ class game:
     def king_in_check(self, king_position):
         # logic for king in check 
         # check diagonal(4) and orthogonal(4) + knight jump (8)
-        # knight jump check can be calculated using a dictionary of 8 positions displaced from king  
-        pass
+        # knight jump check can be calculated using a dictionary of 8 positions displaced from king
+        numbers = [1, 2, -1, -2]
+        pairs = itertools.permutations(numbers, 2)
+        filtered_pairs = [rook_pos for rook_pos in pairs if abs(rook_pos[0]) != abs(rook_pos[1])] 
+        for rook_pos in filtered_pairs:
+            # for board coordinates
+            y, x = rook_pos
+            # 8 DIRECTIONS FOR KNIGHT 
+            within_x_axis = (x >= 0) and (x <= 7)
+            within_y_axis = (y >= 0) and (y <= 7)
+            piece_id = self.board.get_piece_id(rook_pos)
+            chess_piece = self.pieces.piece[piece_id]
+            # within board confines == check for knight
+            if within_x_axis and within_y_axis and chess_piece == knight:
+                return False
+            
+            # DIAGONAL CHECK FOR BISHOP,QUEEN, PAWN
+
+            # ORTHOGONAL CHECK FOR ROOK, QUEEN, PAWN
+
+                
+                
+
+
+
+
+            
+        
 
     def force_castle(self, board_start, board_end, rook_board_start, rook_board_end):
         # function to force rook to move for castling logic TODO 
@@ -273,7 +300,7 @@ class game:
 
         if kings_moved[king_side] != 0:
             print("Invalid Castling: King has already moved")
-            return
+            return False
 
         # four legal castling moves in GAME coordinates
         # rook positions are given in BOARD coordinates
@@ -288,7 +315,7 @@ class game:
 
         if move not in castling_moves:
             print("Invalid Castling")
-            return
+            return False
 
         rook_board_start, rook_board_end = castling_moves[move]
 
@@ -297,25 +324,28 @@ class game:
 
         if rook_id not in rooks_moved:
             print("Invalid Castling: No valid rook")
-            return
+            return False
 
         # Make sure the piece actually is a rook
         if not isinstance(self.pieces.piece[rook_id], rook):
             print("Invalid Castling: Piece is not a rook")
-            return
+            return False 
 
         # Rook must not have moved before
         if rooks_moved[rook_id] != 0:
             print("Invalid Castling: Rook has already moved")
-            return
+            return False
 
         # Every square between king and rook must be empty
         if not self.board.path_clear(board_start, rook_board_start):
             print("Invalid Castling: Path is blocked")
-            return
+            return False
 
         # If all conditions above passed, perform castling
         self.force_castle(board_start, board_end, rook_board_start, rook_board_end)
+        # - returns TRUE for KING, so king_in_check can track the king pos for check 
+        #   using kings end coordinates
+        return True  
 
 
 
@@ -326,6 +356,9 @@ class game:
         kings_moved = {1 : 0, -1 : 0}
         rooks_moved = {1 : 0, -9 : 0,
                        8 : 0, -16 : 0}
+                        # coordinates in x,y format 
+        king_position = {1 : (4,0),
+                         -1 : (4, 7)}
         while playing:
             print("\n\n")
             self.board.game_view()
@@ -400,6 +433,9 @@ class game:
                 if isinstance(chess_piece, king):
                     # piece_id must be the king's id, then piece_id / abs(piece_id will give +1 or -1, as black or white)
                     kings_moved[piece_id / abs(piece_id)] += 1
+                    # - updates current king position for king_in_check function needing king 
+                    #   coordinates at all times 
+                    king_position[piece_id / abs(piece_id)] = end
                     print(kings_moved)
 
                 if isinstance(chess_piece, rook):
@@ -413,7 +449,12 @@ class game:
             # if king piece move is not valid, and is castling, execute castling_condition func 
             elif isinstance(chess_piece, king) and abs(dx) == 2 and dy == 0:
                 # TODO #################### - KING CASTLING LOGIC HERE
-                self.castling_condition(start, end, board_start, board_end, kings_moved, rooks_moved, piece_id)
+                castle_condition = self.castling_condition(start, end, board_start, board_end, kings_moved, rooks_moved, piece_id)
+                if castle_condition:
+                    # - if castle condition is approved, then kings end coordinates is updated 
+                    #   for king_in_check. ELSE king_position is updated
+                    king_position[piece_id / abs(piece_id)] = end
+                
             else:
                 print("\nInvalid Move\n")
             # logic for black and white player needed, aswell as capture logic 
@@ -436,7 +477,7 @@ Game.play()
 
 
 ## TODO
-# - King in check logic - mid
+# - King in check logic - mid - NEXT IN ######################################################
 # - Black vs White logic - mid
                                 # - Pawn promotion at board end - mid # DONE, FULL TESTING NEEDED
-                # - King castling with rook - easy 
+                            # - King castling with rook - easy - relys on check, unable to castle in check
