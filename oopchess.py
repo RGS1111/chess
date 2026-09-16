@@ -1,5 +1,6 @@
 import numpy as np
 import itertools
+import math
 
 class board:
     def __init__(self):
@@ -72,14 +73,17 @@ class board:
             if self.board_array[current] != 0:
                 return False
         return True
-    # checks if king is in check or not
-    def king_in_check():
-        pass
 
     def is_empty(self, end):
         return self.board_array[end] == 0
+    # checks to see if coordinates are within board range
+    def within_board(self, generated_pos):
+        within_x_axis = (generated_pos[1] >= 0) and (generated_pos[1] <= 7)
+        within_y_axis = (generated_pos[0] >= 0) and (generated_pos[0] <= 7)
+        return within_y_axis and within_x_axis
     
     def is_enemy(self, current_piece_id, end):
+        # board coordinates needed
         target_id = self.board_array[end]
         if target_id == 0:
             return False
@@ -88,6 +92,10 @@ class board:
     def is_pawn(self, end):
         piece_id = self.board_array[end]
         return (piece_id >= -8 and piece_id <= 9)
+
+    def undo_move(self, board_start, board_end, captured_piece):
+        self.board_array[board_start] = self.board_array[board_end]
+        self.board_array[board_end] = captured_piece
 
     def move_piece(self, start, end):
         self.board_array[end] = self.board_array[start]
@@ -169,7 +177,7 @@ class pawn:
         if dx == 0 and dy == direction and board.is_empty(board_end):
             return True
         # double step 
-        if dx == 0 and dy == 2 * direction and y1 == pawn_start_row and board.is_empty(board_end):
+        if (dx == 0 and dy == 2 * direction and y1 == pawn_start_row and board.is_empty(board_end) and board.is_empty((y1 + direction, x1))):
             return True 
         # diagonal capture only 
         if (abs(dx) == 1 and dy == direction and board.is_enemy(piece_id, board_end)):
@@ -237,6 +245,12 @@ class queen:
                    or (abs(stepx) == 1 and stepy == 0) 
                    or (stepx == 0 and abs(stepy) == 1)) 
 
+class player:
+    def __init__(self, colour):
+        # balck is +1 and white is -1
+        self.colour = colour
+        self.captured_pieces = []  
+
 class game:
     # logic to control and manage all classses here, below all other classes and things needed \
     # dictionary to have letter/number position identity instead of coordinates
@@ -246,7 +260,10 @@ class game:
         self.pieces = pieces()
         self.en_passant_target = (None) # store target tuple or none
         #######################################################################
-        # NEED LOGIC FOR WHITE AND BLACK
+        self.black = player(1)
+        self.white = player(-1)
+        # black goes 1st by deafult 
+        self.current_player = self.black
     def sign_check(self, piece_id):
         # sign of piece_id compared to biggefr or smaller than 0 returning true or false aka 1 or 0 
         # and then if bigger than 0, then the same piece_id is NOT smaller than 0, so 0 
@@ -255,36 +272,91 @@ class game:
         return (int(piece_id > 0) - int(piece_id < 0))
 
     def king_in_check(self, king_position):
-        # logic for king in check 
+        # logic for king in check RETURN TRUE IF king_in_check
         # check diagonal(4) and orthogonal(4) + knight jump (8)
         # knight jump check can be calculated using a dictionary of 8 positions displaced from king
+        y1, x1 = king_position
+        # 8 DIRECTIONS FOR KNIGHT 
         numbers = [1, 2, -1, -2]
         pairs = itertools.permutations(numbers, 2)
-        filtered_pairs = [rook_pos for rook_pos in pairs if abs(rook_pos[0]) != abs(rook_pos[1])] 
-        for rook_pos in filtered_pairs:
+        filtered_pairs = [knight_pos for knight_pos in pairs if abs(knight_pos[0]) != abs(knight_pos[1])] 
+        king_id = self.board.get_piece_id(king_position)
+        for knight_pos in filtered_pairs:
             # for board coordinates
-            y, x = rook_pos
-            # 8 DIRECTIONS FOR KNIGHT 
-            within_x_axis = (x >= 0) and (x <= 7)
-            within_y_axis = (y >= 0) and (y <= 7)
-            piece_id = self.board.get_piece_id(rook_pos)
-            chess_piece = self.pieces.piece[piece_id]
-            # within board confines == check for knight
-            if within_x_axis and within_y_axis and chess_piece == knight:
-                return False
-            
-            # DIAGONAL CHECK FOR BISHOP,QUEEN, PAWN
+            dy, dx = knight_pos
+            generated_pos = (y1 + dy, x1 + dx)
 
-            # ORTHOGONAL CHECK FOR ROOK, QUEEN, PAWN
+            if self.board.within_board(generated_pos):
+                gen_piece_id = self.board.get_piece_id(generated_pos)
 
-                
-                
+                if gen_piece_id != 0:
+                    gen_chess_piece = self.pieces.piece[gen_piece_id]
 
+                    if (isinstance(gen_chess_piece, knight)
+                            and self.board.is_enemy(king_id, generated_pos)):
+                        return True
+                        
+        # DIAGONAL CHECK FOR BISHOP,QUEEN, PAWN
+        # list of all possible diagonal movements
+        diagonal_step = [(1, 1), (-1, -1), (-1, 1), (1, -1)]
+        # for loop to check all 4 directions till board end. 
+        for dy, dx in diagonal_step:
+            y, x = y1 + dy, x1 + dx
+            while self.board.within_board((y, x)):
+                diagonal_pos = (y, x)
+                piece_id = self.board.get_piece_id(diagonal_pos)
 
+                if piece_id != 0:
+                    diag_piece = self.pieces.piece[piece_id]
 
+                    if self.board.is_enemy(king_id, diagonal_pos):
 
-            
-        
+                        if isinstance(diag_piece, bishop) or isinstance(diag_piece, queen):
+                            return True 
+                    # break here as there is no other end condition
+                    break
+                # increment y and x by the diagonal_step
+                y += dy
+                x += dx
+                        
+        # ORTHOGONAL CHECK FOR ROOK, QUEEN, PAWN
+        orthogonal_step = [(1, 0), (0, 1), (0, -1), (-1, 0)]
+        for dy, dx in orthogonal_step:
+            y, x = dy + y1, dx + x1
+
+            while self.board.within_board((y, x)):
+                orthogonal_pos = (y, x)
+                piece_id = self.board.get_piece_id(orthogonal_pos)
+
+                if piece_id != 0:
+                    orthogonal_piece = self.pieces.piece[piece_id]
+
+                    if self.board.is_enemy(king_id, orthogonal_pos):
+
+                        if isinstance(orthogonal_piece, rook) or isinstance(orthogonal_piece, queen):
+                            return True
+                    break
+
+                y += dy
+                x += dx
+
+        # PAWN CHECK - FOR INDIVIDUAL ONE STEP PAWNS NEAR KING 
+        pawn_direction = 1 if king_id < 0 else -1
+        # checks for individual diagonal pawns around king leading too check
+        pawn_positions = [(y1 + pawn_direction, x1 - 1), (y1 + pawn_direction, x1 + 1)]
+
+        for pawn_pos in pawn_positions:
+            if self.board.within_board(pawn_pos):
+                piece_id = self.board.get_piece_id(pawn_pos)
+
+                if piece_id != 0:
+                    piece_name = self.pieces.piece[piece_id]
+
+                    if (isinstance(piece_name, pawn)
+                            and self.board.is_enemy(king_id, pawn_pos)):
+                        return True
+        # if this is reached then king is just not in check
+        return False
 
     def force_castle(self, board_start, board_end, rook_board_start, rook_board_end):
         # function to force rook to move for castling logic TODO 
@@ -347,8 +419,6 @@ class game:
         #   using kings end coordinates
         return True  
 
-
-
     def play(self):
         playing = True
         # set playing to false when game lost
@@ -356,9 +426,9 @@ class game:
         kings_moved = {1 : 0, -1 : 0}
         rooks_moved = {1 : 0, -9 : 0,
                        8 : 0, -16 : 0}
-                        # coordinates in x,y format 
-        king_position = {1 : (4,0),
-                         -1 : (4, 7)}
+                        # coordinates in y, x format 
+        king_position = {1 : (0, 4),
+                         -1 : (7, 4)}
         while playing:
             print("\n\n")
             self.board.game_view()
@@ -382,8 +452,21 @@ class game:
                 continue # restarts the loop cleanly 
             # retrives the id for the starting/playing piece
             piece_id = self.board.get_piece_id(board_start)
+
+            # check the selected piece belongs to current_player
+            if piece_id > 0:
+                piece_colour = 1
+            else:
+                piece_colour = -1
+            if piece_colour != self.current_player.colour:
+                print("\n That is not your piece.\n")
+                continue
             # chess_piece holds the class for the id's piece type (eg. rook, queen ect...)
             chess_piece = self.pieces.piece[piece_id]
+            # if start == end then move invalid
+            if start == end:
+                print("\nInvalid Move\n")
+                continue
             # is_valid_move function used to check the move conforms to its piece id 
             print("start:", start)
             print("end:", end)
@@ -397,53 +480,77 @@ class game:
                 #   will not be able to access the function, due to it being in the 
                 #   game() class, so just pass a REFRENCE instead, aka 'self.board' 
                 #   which points to the board in memory stored in game class.
-                if isinstance(chess_piece, pawn) and y2 in (0 , 7):
-                    # CODE FOR PAWN PROMOTION AT END OF BOARD #TODO
-                    # - I can use 'or' here, since a pawn cannot travel backwards, thus any pawn at 
-                    #   vertical ends y == 0 or y == 7 would be eligible for a pawn promotion
-                    promotion_choice = int(input("\nPAWN has reached the end. \n"\
-                    "Enter the number of the desired promotion piece: \n" \
-                    "1 : ROOK \n" \
-                    "2 : KNIGHT \n" \
-                    "3 : BISHOP \n" \
-                    "4 : QUEEN \n" \
-                    "Enter Int -> "))
-                    promotion = {1 : rook(),
-                                 2 : knight(),
-                                 3 : bishop(),
-                                 4 : queen()} 
-                    self.pieces.pawn_promotion(piece_id, promotion[promotion_choice])
-
-
-                # - Check if the moved piece was a double step pawn for en-passant count 
-                #   as en-passant only occurs on the turn after the double pawn moves forward
-                if isinstance(chess_piece, pawn) and abs(dy) == 2:
-                    # Target square is the skipped square in user coordinates (x, y)
-                    skipped_y = (y1 + y2) // 2
-                    self.en_passant_target = (x1, skipped_y)
-                else:
-                    # Clear en passant if any other move is made
-                    self.en_passant_target = None
 
                 if isinstance(chess_piece, knight): # knight != path check as it jumps over 
                     path_is_clear = True
                 else:
                     path_is_clear = self.board.path_clear(board_start, board_end)
 
-                if isinstance(chess_piece, king):
-                    # piece_id must be the king's id, then piece_id / abs(piece_id will give +1 or -1, as black or white)
-                    kings_moved[piece_id / abs(piece_id)] += 1
-                    # - updates current king position for king_in_check function needing king 
-                    #   coordinates at all times 
-                    king_position[piece_id / abs(piece_id)] = end
-                    print(kings_moved)
-
-                if isinstance(chess_piece, rook):
-                    rooks_moved[piece_id] += 1
-                    print(rooks_moved)
+                
         
                 if path_is_clear and self.board.can_capture(board_start, board_end):
-                    self.board.move_piece(board_start, board_end)
+                    captured_piece = self.board.get_piece_id(board_end)
+
+                   # ##################################################################################################################################################
+                    self.board.move_piece(board_start, board_end)#
+                   # ##################################################################################################################################################
+                    if isinstance(chess_piece, king):
+                        test_king_position = board_end
+                    else:
+                        test_king_position = king_position[piece_id // abs(piece_id)]
+
+                    if self.king_in_check(test_king_position):
+                        print("\nInvalid Move: King would be in check\n")
+                        self.board.undo_move(board_start, board_end, captured_piece)
+                        continue
+                    # now if king is not in check and move has passed without undo, then capture
+                    if captured_piece != 0:
+                        # stores the captured piece into white or black holding 
+                        self.current_player.captured_pieces.append(captured_piece)
+                    if isinstance(chess_piece, king):
+                        # piece_id must be the king's id, then piece_id / abs(piece_id will give +1 or -1, as black or white)
+                        kings_moved[piece_id // abs(piece_id)] += 1
+                        # - updates current king position for king_in_check function needing king 
+                        #   coordinates at all times 
+                        king_position[piece_id // abs(piece_id)] = board_end
+                        print(kings_moved)
+
+                    if isinstance(chess_piece, rook):
+                        rooks_moved[piece_id] += 1
+                        print(rooks_moved)
+
+                     # - Check if the moved piece was a double step pawn for en-passant count 
+                    #   as en-passant only occurs on the turn after the double pawn moves forward
+                    if isinstance(chess_piece, pawn) and abs(dy) == 2:
+                        # Target square is the skipped square in user coordinates (x, y)
+                        skipped_y = (y1 + y2) // 2
+                        self.en_passant_target = (x1, skipped_y)
+                    else:
+                        # Clear en passant if any other move is made
+                        self.en_passant_target = None
+
+                    if isinstance(chess_piece, pawn) and y2 in (0 , 7):
+                        # CODE FOR PAWN PROMOTION AT END OF BOARD #TODO
+                        # - I can use 'or' here, since a pawn cannot travel backwards, thus any pawn at 
+                        #   vertical ends y == 0 or y == 7 would be eligible for a pawn promotion
+                        promotion_choice = int(input("\nPAWN has reached the end. \n"\
+                        "Enter the number of the desired promotion piece: \n" \
+                        "1 : ROOK \n" \
+                        "2 : KNIGHT \n" \
+                        "3 : BISHOP \n" \
+                        "4 : QUEEN \n" \
+                        "Enter Int -> "))
+                        promotion = {1 : rook(),
+                                        2 : knight(),
+                                        3 : bishop(),
+                                        4 : queen()} 
+                        self.pieces.pawn_promotion(piece_id, promotion[promotion_choice])
+
+                    # switch player after successful move 
+                    if self.current_player == self.black:
+                        self.current_player = self.white
+                    else:
+                        self.current_player = self.black
                 else:
                     print("\nInvalid Move\n")
             # if king piece move is not valid, and is castling, execute castling_condition func 
@@ -453,7 +560,7 @@ class game:
                 if castle_condition:
                     # - if castle condition is approved, then kings end coordinates is updated 
                     #   for king_in_check. ELSE king_position is updated
-                    king_position[piece_id / abs(piece_id)] = end
+                    king_position[piece_id // abs(piece_id)] = board_end
                 
             else:
                 print("\nInvalid Move\n")
@@ -477,7 +584,7 @@ Game.play()
 
 
 ## TODO
-# - King in check logic - mid - NEXT IN ######################################################
-# - Black vs White logic - mid
+                        # - King in check logic - mid - NEXT IN ######################################################
+                                # - Black vs White logic - mid
                                 # - Pawn promotion at board end - mid # DONE, FULL TESTING NEEDED
                             # - King castling with rook - easy - relys on check, unable to castle in check
