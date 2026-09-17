@@ -264,6 +264,7 @@ class game:
         self.white = player(-1)
         # black goes 1st by deafult 
         self.current_player = self.black
+        print("Current Player: Black (Top)")
     def sign_check(self, piece_id):
         # sign of piece_id compared to biggefr or smaller than 0 returning true or false aka 1 or 0 
         # and then if bigger than 0, then the same piece_id is NOT smaller than 0, so 0 
@@ -355,8 +356,136 @@ class game:
                     if (isinstance(piece_name, pawn)
                             and self.board.is_enemy(king_id, pawn_pos)):
                         return True
+                # KING CHECK
+        king_step = [
+            (1, 0), (-1, 0),
+            (0, 1), (0, -1),
+            (1, 1), (1, -1),
+            (-1, 1), (-1, -1)
+        ]
+
+        # if enemy attacking is opposing teams king 
+        for dy, dx in king_step:
+            king_pos = (y1 + dy, x1 + dx)
+
+            if self.board.within_board(king_pos):
+                piece_id = self.board.get_piece_id(king_pos)
+
+                if piece_id != 0:
+                    piece = self.pieces.piece[piece_id]
+
+                    if (isinstance(piece, king)
+                        and self.board.is_enemy(king_id, king_pos)):
+                        return True
+
+        return False
         # if this is reached then king is just not in check
         return False
+
+    def has_legal_move(self, colour, king_position):
+    # checks whether the player has at least ONE legal move
+    # Returns:
+    # - True  means a legal move exists
+    # - False means no legal moves exist
+
+        for row in range(8):
+            for column in range(8):
+
+                board_start = (row, column)
+                piece_id = self.board.get_piece_id(board_start)
+
+                # empty square
+                if piece_id == 0:
+                    continue
+
+                # only look at pieces belonging to this player
+                if (piece_id > 0) != (colour > 0):
+                    continue
+
+                chess_piece = self.pieces.piece[piece_id]
+
+                # try every possible destination
+                for end_row in range(8):
+                    for end_column in range(8):
+
+                        board_end = (end_row, end_column)
+
+                        if board_start == board_end:
+                            continue
+
+                        # convert board coordinates (y,x)
+                        # into user coordinates (x,y)
+                        start = (column, row)
+                        end = (end_column, end_row)
+
+                        # Check piece movement rules
+                        if not chess_piece.is_valid_move(start, end, self.board, board_start, board_end, self.en_passant_target):
+                            continue
+
+                        # knights jump over pieces
+                        if isinstance(chess_piece, knight):
+                            path_is_clear = True
+                        else:
+                            path_is_clear = self.board.path_clear(board_start, board_end)
+
+                        if not path_is_clear:
+                            continue
+
+                        # Normal capture / empty square
+                        legal_capture = self.board.can_capture(board_start, board_end)
+
+                        # Special case: en passant
+                        en_passant = (isinstance(chess_piece, pawn) 
+                            and end == self.en_passant_target
+                            and self.board.is_empty(board_end))
+
+                        if not legal_capture and not en_passant:
+                            continue
+
+                        # Save current board
+                        saved_board = self.board.board_array.copy()
+
+                        self.board.board_array[board_end] = piece_id
+                        self.board.board_array[board_start] = 0
+
+                        # en-passant removes the pawn behind the target square
+                        if en_passant:
+                            captured_pawn_pos = (board_start[0], board_end[1])
+                            self.board.board_array[captured_pawn_pos] = 0
+
+                        # determine where this players king would be
+                        if isinstance(chess_piece, king):
+                            test_king_position = board_end
+                        else:
+                            test_king_position = king_position
+
+                        # if the king is NOT in check after this move, then we found an escape
+                        still_in_check = self.king_in_check(test_king_position)
+
+                        # restore board
+                        self.board.board_array = saved_board
+
+                        if not still_in_check:
+                            return True
+
+        # if every possible move was tested and all left the king in check
+        return False
+
+
+    def checkmate(self, colour, king_position):
+        """
+        Returns True if the player is in checkmate.
+        """
+
+        # Checkmate requires the king to currently be in check
+        if not self.king_in_check(king_position):
+            return False
+
+        # If there is at least one legal escape, it isn't checkmate
+        if self.has_legal_move(colour, king_position):
+            return False
+
+        return True
 
     def force_castle(self, board_start, board_end, rook_board_start, rook_board_end):
         # function to force rook to move for castling logic TODO 
@@ -546,11 +675,31 @@ class game:
                                         4 : queen()} 
                         self.pieces.pawn_promotion(piece_id, promotion[promotion_choice])
 
+                    # check whether the opposing player is now in checkmate
+                    if self.current_player == self.black:
+                        opponent_colour = -1
+                    else:
+                        opponent_colour = 1
+
+                    opponent_king_position = king_position[opponent_colour]
+
+                    if self.checkmate(
+                        opponent_colour,
+                        opponent_king_position
+                    ):
+                        print("\nCHECKMATE!")
+                        print("BLACK WINS!" if opponent_colour == -1 else "WHITE WINS!")
+                        playing = False
+                        continue
+
                     # switch player after successful move 
                     if self.current_player == self.black:
                         self.current_player = self.white
+                        print("\n")
+                        print("\nCurrent Player: WHITE (Bottom)")
                     else:
                         self.current_player = self.black
+                        print("\nCurrent Player: BLACK (Top)\n")
                 else:
                     print("\nInvalid Move\n")
             # if king piece move is not valid, and is castling, execute castling_condition func 
