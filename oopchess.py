@@ -473,9 +473,7 @@ class game:
 
 
     def checkmate(self, colour, king_position):
-        """
-        Returns True if the player is in checkmate.
-        """
+        # returns true if the player is in checkmate
 
         # Checkmate requires the king to currently be in check
         if not self.king_in_check(king_position):
@@ -555,7 +553,7 @@ class game:
         kings_moved = {1 : 0, -1 : 0}
         rooks_moved = {1 : 0, -9 : 0,
                        8 : 0, -16 : 0}
-                        # coordinates in y, x format 
+        # coordinates in y, x format 
         king_position = {1 : (0, 4),
                          -1 : (7, 4)}
         while playing:
@@ -614,8 +612,6 @@ class game:
                     path_is_clear = True
                 else:
                     path_is_clear = self.board.path_clear(board_start, board_end)
-
-                
         
                 if path_is_clear and self.board.can_capture(board_start, board_end):
                     captured_piece = self.board.get_piece_id(board_end)
@@ -680,13 +676,13 @@ class game:
                         opponent_colour = -1
                     else:
                         opponent_colour = 1
-
+                    # 
                     opponent_king_position = king_position[opponent_colour]
 
-                    if self.checkmate(
-                        opponent_colour,
-                        opponent_king_position
-                    ):
+                    # function below checks if the move current player 
+                    # - has done causes the other player to be trapped
+                    # - if so then current player HAS WON
+                    if self.checkmate(opponent_colour, opponent_king_position):
                         print("\nCHECKMATE!")
                         print("BLACK WINS!" if opponent_colour == -1 else "WHITE WINS!")
                         playing = False
