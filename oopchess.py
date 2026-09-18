@@ -672,6 +672,7 @@ class game:
                         captured_pawn_pos = (board_start[0], board_end[1])
                         self.board.board_array[captured_pawn_pos] = 0
                     else:
+                        # if not en passant capture is normal board_end
                         captured_piece = self.board.get_piece_id(board_end)
 
                    # ##################################################################################################################################################
