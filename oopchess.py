@@ -18,7 +18,57 @@ class board:
                 count_p2 = count_p2 - 1
                 self.board_array[row, column] = count_p2
     def game_view(self):
-        print(self.board_array)
+        translate_to_letters = { 1 : "R",
+                                 2 : "k",
+                                 3 : "B",
+                                 4 : "Q",
+                                 5 : "K",
+                                 6 : "B",
+                                 7 : "k",
+                                 8 : "R",
+                                 -9 : "R",
+                                 -10 : "k",
+                                 -11 : "B",
+                                 -12 : "Q",
+                                 -13 : "K",
+                                 -14 : "B",
+                                 -15 : "k",
+                                 -16 : "R"}
+        letter_board_array = np.zeros((9,9), dtype=object)
+        letter_board_array[0, 0] = " "
+        for label in range(1, 9):
+            # turned to string so that labels align with the board
+            # for column 
+            letter_board_array[0, label] = f"\033[1m{label - 1}\033[0m"
+            # for row
+            letter_board_array[label, 0] = f"\033[1m{label - 1}\033[0m"
+
+        for row in range(8):
+            for column in range(8):
+                board_pos = (row, column)
+                # shift down right, so that it fits the labels for row and columns 
+                letter_pos = (row + 1, column + 1)
+
+                piece_id = self.board_array[board_pos]
+
+                # checks if piece_id is pawn, returns 1 if pawn else 0
+                is_pawn = 1 if (piece_id >= 9 
+                                and piece_id <= 16) \
+                                or (piece_id >= -8 and 
+                                    piece_id <= -1) else 0
+                if is_pawn == 1:
+                    letter_board_array[letter_pos] = "P"
+                elif piece_id != 0:
+                    piece_letter = translate_to_letters[piece_id]
+                    letter_board_array[letter_pos] = piece_letter
+                else:
+                    letter_board_array[letter_pos] = "0"
+
+        #print(letter_board_array)
+        # loop through each row and print it as a clean space separated line by forcing numpy out of debug mode
+        for row in letter_board_array:
+            print("   ".join(str(cell) for cell in row))
+
 
     def sign_check(self, piece_id):
             # sign of piece_id compared to biggefr or smaller than 0 returning true or false aka 1 or 0 
@@ -614,7 +664,15 @@ class game:
                     path_is_clear = self.board.path_clear(board_start, board_end)
         
                 if path_is_clear and self.board.can_capture(board_start, board_end):
-                    captured_piece = self.board.get_piece_id(board_end)
+                    en_passant = (isinstance(chess_piece, pawn) and 
+                                  end == self.en_passant_target and 
+                                  self.board.is_empty(board_end))
+                    if en_passant:
+                        # in y, x form, starting y and ending x is the captured piece for en passant
+                        captured_pawn_pos = (board_start[0], board_end[1])
+                        self.board.board_array[captured_pawn_pos] = 0
+                    else:
+                        captured_piece = self.board.get_piece_id(board_end)
 
                    # ##################################################################################################################################################
                     self.board.move_piece(board_start, board_end)#
