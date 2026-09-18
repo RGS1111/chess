@@ -322,6 +322,17 @@ class game:
         print(int(piece_id > 0), int(piece_id < 0))
         return (int(piece_id > 0) - int(piece_id < 0))
 
+    def switch_player(self):
+        # switch player after successful move 
+        if self.current_player == self.black:
+            self.current_player = self.white
+            print("\n")
+            print("\nCurrent Player: WHITE (Bottom)")
+        else:
+            self.current_player = self.black
+            print("\nCurrent Player: BLACK (Top)\n")
+
+
     def king_in_check(self, king_position):
         # logic for king in check RETURN TRUE IF king_in_check
         # check diagonal(4) and orthogonal(4) + knight jump (8)
@@ -430,7 +441,6 @@ class game:
 
         return False
         # if this is reached then king is just not in check
-        return False
 
     def has_legal_move(self, colour, king_position):
     # checks whether the player has at least ONE legal move
@@ -748,13 +758,14 @@ class game:
                         continue
 
                     # switch player after successful move 
-                    if self.current_player == self.black:
-                        self.current_player = self.white
-                        print("\n")
-                        print("\nCurrent Player: WHITE (Bottom)")
-                    else:
-                        self.current_player = self.black
-                        print("\nCurrent Player: BLACK (Top)\n")
+                    self.switch_player()
+                    # if self.current_player == self.black:
+                    #     self.current_player = self.white
+                    #     print("\n")
+                    #     print("\nCurrent Player: WHITE (Bottom)")
+                    # else:
+                    #     self.current_player = self.black
+                    #     print("\nCurrent Player: BLACK (Top)\n")
                 else:
                     print("\nInvalid Move\n")
             # if king piece move is not valid, and is castling, execute castling_condition func 
@@ -765,6 +776,7 @@ class game:
                     # - if castle condition is approved, then kings end coordinates is updated 
                     #   for king_in_check. ELSE king_position is updated
                     king_position[piece_id // abs(piece_id)] = board_end
+                    self.switch_player()
                 
             else:
                 print("\nInvalid Move\n")
